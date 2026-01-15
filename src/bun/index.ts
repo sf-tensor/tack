@@ -10,6 +10,9 @@ import { createBunLocalStagingApp } from './local-staging'
 import { createBunProductionApp } from './production'
 import { Bucket } from '../bucket'
 
+export { generateNpmRc } from './util'
+export type { DevPodConfig, BunAppConfig, EnvEntry } from './types'
+
 export class Role extends Resource<{ role: aws.iam.Role }, {}> {
 	protected policyCounter = 0
 

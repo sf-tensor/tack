@@ -4,11 +4,11 @@ import * as path from "path"
 import { execSync } from "child_process"
 
 import { BunApp } from "./index"
-import { BunAppConfig, EnvEntry } from "./types"
 import { buildImage } from "../docker/builder"
+import { readSecretsFile } from "../secrets/local"
+import { BunAppConfig, EnvEntry } from "./types"
 import { getOrigin, ResourceArgs } from "../types"
 import { createBunKubernetesDeployment } from "./production"
-import { readSecretsFile } from "../secrets/local"
 
 function resolvePublicEnvValue(entry: EnvEntry): string {
 	if (typeof entry.value === 'string') {

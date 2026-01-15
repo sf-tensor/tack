@@ -1,13 +1,13 @@
-import { BunApp } from "./index"
-import { createAppEcrRepositories } from '../cicd/ecr'
-import { getEnvironmentVariables, BunAppConfig, NativeSecretEnvEntry, getNativeSecretKey, getSecretArn } from "./types"
-import { currentAccountId, currentStack, isLocalStack, ResourceArgs } from "../types"
-import { createOidcRole } from '../iam/role'
-import { createLocalSecretsForApp } from '../secrets/local'
-
 import * as aws from '@pulumi/aws'
 import * as k8s from '@pulumi/kubernetes'
 import * as pulumi from '@pulumi/pulumi'
+
+import { BunApp } from "./index"
+import { createOidcRole } from '../iam/role'
+import { createLocalSecretsForApp } from '../secrets/local'
+import { createAppEcrRepositories } from '../cicd/ecr'
+import { currentAccountId, currentStack, isLocalStack, ResourceArgs } from "../types"
+import { getEnvironmentVariables, BunAppConfig, NativeSecretEnvEntry, getNativeSecretKey, getSecretArn } from "./types"
 
 export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, imageName: pulumi.Input<string>, tasksImageName: pulumi.Input<string> | null): BunApp {
 	if (args.healthRoute == null) throw new Error("healthRoute is required in non-development stacks")

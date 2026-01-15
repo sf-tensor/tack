@@ -1,9 +1,10 @@
 import * as aws from '@pulumi/aws'
-import * as pulumi from '@pulumi/pulumi'
 import * as k8s from '@pulumi/kubernetes'
-import { currentAccountId, Repository } from '../types'
+import * as pulumi from '@pulumi/pulumi'
+
 import { Cluster } from '../cluster'
 import { DeploymentManager } from '../cicd/deployManager'
+import { currentAccountId, Repository } from '../types'
 
 export interface DevPodConfig {
 	nodeModulesCacheSize?: string	/** Size of PVC for node_modules cache (default: '5Gi') */
