@@ -93,9 +93,9 @@ See `examples/basic` for a fuller walkthrough.
 
 ## Docs
 
-- `docs/OVERVIEW.md`
-- `docs/DEV_POD.md`
-- `docs/DEPLOYMENT_MANAGER.md`
+- [docs/OVERVIEW.md](docs/OVERVIEW.md)
+- [docs/DEV_POD.md](docs/DEV_POD.md)
+- [docs/DEPLOYMENT_MANAGER.md](docs/DEPLOYMENT_MANAGER.md)
 
 ## Configuration
 
@@ -123,11 +123,11 @@ Local stacks (`development`, `local-staging`) enable DevPod and other local conv
 
 ## DevPod
 
-DevPod is a first-class workflow for developing against a cluster. It sets up a dev pod, syncs your local files, and forwards ports. See `docs/DEV_POD.md`.
+DevPod is a first-class workflow for developing against a cluster. It sets up a dev pod, syncs your local files, and forwards ports. See [docs/DEV_POD.md](docs/DEV_POD.md).
 
 ## Deployment manager
 
-The deployment manager is a companion service that handles deployment tasks and CodeBuild orchestration for non-local stacks. See `docs/DEPLOYMENT_MANAGER.md`.
+The deployment manager is a companion service that handles deployment tasks and CodeBuild orchestration for non-local stacks. See [docs/DEPLOYMENT_MANAGER.md](docs/DEPLOYMENT_MANAGER.md).
 
 ## Notes and limitations
 
