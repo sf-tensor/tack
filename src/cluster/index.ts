@@ -404,47 +404,6 @@ mode = "always"
 		},
 	}, { dependsOn: csiDriver, provider: cluster.provider })
 
-	// const betterStackSecret = aws.secretsmanager.getSecretVersionOutput({
-	// 	secretId: `${currentStack}/better-stack/collector-secret`
-	// })
-
-	// const betterStackCollector = new k8s.helm.v3.Release(`${args.id}-better-stack-collector`, {
-	// 	chart: "collector",
-	// 	namespace: "kube-system",
-	// 	repositoryOpts: {
-	// 		repo: "https://betterstackhq.github.io/collector-helm-chart",
-	// 	},
-	// 	values: {
-	// 		collector: {
-	// 			env: {
-	// 				COLLECTOR_SECRET: betterStackSecret.secretString
-	// 			},
-	// 			resources: {
-	// 				requests: {
-	// 					cpu: "250m",
-	// 					memory: "512Mi",
-	// 				},
-	// 				limits: {
-	// 					cpu: "500m",
-	// 					memory: "1Gi"
-	// 				}
-	// 			}
-	// 		},
-	// 		beyla: {
-	// 			resources: {
-	// 				requests: {
-	// 					cpu: "250m",
-	// 					memory: "512Mi",
-	// 				},
-	// 				limits: {
-	// 					cpu: "500m",
-	// 					memory: "1Gi"
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }, { provider: cluster.provider, dependsOn: nodeGroups })
-
 	const lbControllerRole = createOidcRole({
 		name: `${args.id}-${currentStack}-lb-controller`,
 		serviceAccount: 'aws-load-balancer-controller',
@@ -485,7 +444,7 @@ mode = "always"
 		provider: cluster.provider,
 		nodeGroups,
 		clusterSecurityGroupId: clusterSecurityGroup.id
-	}, [secretsProvider, awsLbController]) //, betterStackCollector
+	}, [secretsProvider, awsLbController])
 }
 
 function getLbControllerPolicy(id: string) {

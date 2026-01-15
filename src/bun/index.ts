@@ -11,7 +11,7 @@ import { createBunProductionApp } from './production'
 import { Bucket } from '../bucket'
 
 export class Role extends Resource<{ role: aws.iam.Role }, {}> {
-	private policyCounter = 0
+	protected policyCounter = 0
 
 	constructor(backing: { role: aws.iam.Role } | {}) {
 		super(backing)
