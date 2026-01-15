@@ -1,23 +1,6 @@
-# Dependencies
-node_modules/
-
-# Build output
-dist/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
+node_modules
+/dist
 .DS_Store
-Thumbs.db
-
-# Pulumi
-Pulumi.*.yaml
-.pulumi/
-
-# Logs
+.env.*
+.secrets
 *.log
-npm-debug.log*

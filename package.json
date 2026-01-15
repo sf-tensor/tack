@@ -1,58 +1,48 @@
 {
   "name": "@sf-tensor/tack",
-  "version": "1.0.0",
-  "description": "A strongly-typed, stack-aware Pulumi infrastructure-as-code framework for AWS",
+  "version": "0.1.0",
+  "description": "Pulumi components for AWS + Kubernetes infrastructure.",
+  "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js"
+    }
+  },
   "files": [
     "dist",
-    "src"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
-    "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.js",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [
-    "pulumi",
-    "infrastructure-as-code",
-    "iac",
-    "aws",
-    "kubernetes",
-    "eks",
-    "terraform-alternative",
-    "devops"
-  ],
-  "author": "SF Tensor",
-  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sf-tensor/tack.git"
+    "url": "git+ssh://git@github.com:sf-tensor/tack.git"
   },
   "bugs": {
     "url": "https://github.com/sf-tensor/tack/issues"
   },
   "homepage": "https://github.com/sf-tensor/tack#readme",
-  "peerDependencies": {
-    "@pulumi/pulumi": "^3.0.0"
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@pulumi/aws": "^7.0.0",
-    "@pulumi/awsx": "^3.0.0",
-    "@pulumi/cloudflare": "^6.0.0",
-    "@pulumi/command": "^1.0.0",
-    "@pulumi/eks": "^4.0.0",
-    "@pulumi/kubernetes": "^4.0.0",
+    "@pulumi/cloudflare": "^6.12.0",
+    "@pulumi/command": "^1.1.3",
+    "@pulumi/eks": "^4.2.0",
+    "@pulumi/kubernetes": "^4.24.1",
+    "@pulumi/pulumi": "^3.113.0",
     "@pulumi/random": "^4.0.0"
   },
   "devDependencies": {
-    "@pulumi/pulumi": "^3.113.0",
-    "@types/bun": "^1.3.6",
     "@types/node": "^18",
     "typescript": "^5.0.0"
-  },
-  "engines": {
-    "node": ">=18"
   }
 }
