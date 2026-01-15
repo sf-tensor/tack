@@ -222,6 +222,7 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 		ports: args.ports.map((p) => ({ containerPort: p.port, name: p.name })),
 		env: [
 			{ name: "NODE_ENV", value: "production" },
+			{ name: "STACK", value: currentStack },
 			...getEnvironmentVariables(args.env, args.id)
 		],
 		readinessProbe: {
