@@ -1,13 +1,13 @@
 import { Cluster } from "../cluster"
-import { currentStack, isLocalStack, Repository, ResourceArgs } from "../types"
+import { currentStack, isLocalStack, ResourceArgs, Repository } from "../types"
 import { createDeploymentManagerInCluster, createManagerEcrRepository } from "./manager"
 import { createDeploymentQueue } from "./sqs"
 import { createCodeBuildRole, createManagerCodeBuildRole, createManagerPodRole } from "./iam"
 
 import * as pulumi from '@pulumi/pulumi'
 
-import { BunApp } from "../app"
-import { BunAppConfig, getSecretArn, NativeSecretEnvEntry } from "../app/types"
+import { BunApp } from "../bun"
+import { BunAppConfig, getSecretArn, NativeSecretEnvEntry } from "../bun/types"
 import { createCodeBuildProject, createManagerCodeBuildProject } from "./codebuild"
 import { EcrRepositories } from "./ecr"
 
@@ -71,12 +71,15 @@ export class AWSDeploymentManager implements DeploymentManager {
 
 interface DeploymentManagerConfig {
 	cluster: Cluster
-	managerRepository: Repository
-	managerBranch: string
+	managerRepository?: Repository
+	managerBranch?: string
 }
 
 export function createDeploymentManager(args: ResourceArgs<DeploymentManagerConfig>): DeploymentManager {
 	if (isLocalStack(currentStack)) return new LocalDeploymentManager()
+	if (!args.managerRepository) {
+		throw new Error("managerRepository is required for non-local stacks")
+	}
 
 	const managerEcr = createManagerEcrRepository({
 		id: `${args.id}-manager-ecr`,
@@ -125,7 +128,9 @@ export function createDeploymentManager(args: ResourceArgs<DeploymentManagerConf
 		branch: args.managerBranch,
 		serviceRole: managerCodeBuildRole,
 		ecrRepoUrl: managerEcr.repositoryUrl,
-		sqsQueueUrl: deploymentQueue.queueUrl
+		sqsQueueUrl: deploymentQueue.queueUrl,
+		repository: args.managerRepository,
+		branch: args.managerBranch
 	})
 
 	return new AWSDeploymentManager(deploymentQueue.queueArn, deploymentQueue.queueUrl)

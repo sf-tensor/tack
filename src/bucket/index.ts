@@ -6,7 +6,7 @@ import { addS3LifecycleRules, createS3Bucket } from './aws'
 import { BucketConfig, BucketOutputs, LifecycleRule } from './types'
 
 import { currentStack, isLocalStack, Resource, ResourceArgs } from '../types'
-import { EnvEntry } from '../app/types'
+import { EnvEntry } from '../bun/types'
 
 type AWSBucketBacking = { bucket: aws.s3.Bucket }
 
