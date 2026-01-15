@@ -1,6 +1,6 @@
 {
   "name": "@sf-tensor/tack",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Pulumi components for AWS + Kubernetes infrastructure.",
   "license": "MIT",
   "main": "dist/index.js",
@@ -30,7 +30,8 @@
   },
   "homepage": "https://github.com/sf-tensor/tack#readme",
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
     "@pulumi/aws": "^7.0.0",
