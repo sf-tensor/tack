@@ -1,4 +1,4 @@
-import { BunApp } from "./index"
+import { BunApp } from "../bun"
 import { createAppEcrRepositories } from '../cicd/ecr'
 import { getEnvironmentVariables, BunAppConfig, NativeSecretEnvEntry, getNativeSecretKey, getSecretArn } from "./types"
 import { currentAccountId, currentStack, isLocalStack, ResourceArgs } from "../types"

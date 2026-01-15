@@ -128,9 +128,7 @@ export function createDeploymentManager(args: ResourceArgs<DeploymentManagerConf
 		branch: args.managerBranch,
 		serviceRole: managerCodeBuildRole,
 		ecrRepoUrl: managerEcr.repositoryUrl,
-		sqsQueueUrl: deploymentQueue.queueUrl,
-		repository: args.managerRepository,
-		branch: args.managerBranch
+		sqsQueueUrl: deploymentQueue.queueUrl
 	})
 
 	return new AWSDeploymentManager(deploymentQueue.queueArn, deploymentQueue.queueUrl)

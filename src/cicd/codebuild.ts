@@ -269,12 +269,10 @@ phases:
 // ============================================
 export interface ManagerCodeBuildConfig {
 	repository: Repository
-	branch: string
+	branch?: string
 	serviceRole: aws.iam.Role
 	ecrRepoUrl: pulumi.Input<string>
 	sqsQueueUrl: pulumi.Input<string>
-	repository: Repository
-	branch?: string
 }
 
 export function createManagerCodeBuildProject(args: ResourceArgs<ManagerCodeBuildConfig>): aws.codebuild.Project {
