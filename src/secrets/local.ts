@@ -3,7 +3,7 @@ import * as path from 'path'
 import * as k8s from '@pulumi/kubernetes'
 import * as pulumi from '@pulumi/pulumi'
 import { Cluster } from '../cluster'
-import { NativeSecretEnvEntry, getNativeSecretKey } from '../app/types'
+import { NativeSecretEnvEntry, getNativeSecretKey } from '../bun/types'
 
 const SECRETS_FILE_PATH = '.secrets'
 

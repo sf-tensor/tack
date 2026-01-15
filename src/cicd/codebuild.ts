@@ -4,7 +4,7 @@ import * as pulumi from '@pulumi/pulumi'
 import * as fs from 'fs'
 import * as path from 'path'
 import { currentStack, githubConnectorArn, ResourceArgs, Repository } from '../types'
-import { EnvEntry } from '../app/types'
+import { EnvEntry } from '../bun/types'
 
 function getDockerfileContent(filename: string): string {
 	const dockerfilePath = path.join(__dirname, '../bun/assets', filename)
@@ -271,17 +271,20 @@ export interface ManagerCodeBuildConfig {
 	serviceRole: aws.iam.Role
 	ecrRepoUrl: pulumi.Input<string>
 	sqsQueueUrl: pulumi.Input<string>
+	repository: Repository
+	branch?: string
 }
 
 export function createManagerCodeBuildProject(args: ResourceArgs<ManagerCodeBuildConfig>): aws.codebuild.Project {
-	const sourceLocation = 'https://github.com/sf-tensor/cicd-manager.git'
+	const sourceLocation = `https://github.com/${args.repository.org}/${args.repository.repo}.git`
+	const sourceBranch = args.branch ?? 'master'
 
 	const project = new aws.codebuild.Project(`cicd-manager-codebuild`, {
 		name: `${currentStack}-cicd-manager`,
 		description: `Build project for CI/CD Manager in ${currentStack}`,
 		buildTimeout: 15,
 		serviceRole: args.serviceRole.arn,
-		sourceVersion: 'master',
+		sourceVersion: sourceBranch,
 
 		source: {
 			type: 'GITHUB',
@@ -341,7 +344,7 @@ export function createManagerCodeBuildProject(args: ResourceArgs<ManagerCodeBuil
 				},
 				{
 					type: 'HEAD_REF',
-					pattern: '^refs/heads/master$'
+					pattern: `^refs/heads/${sourceBranch}$`
 				}
 			]
 		}]

@@ -43,60 +43,14 @@ export function getOrigin(repo: Repository) {
 	throw new Error("Invalid repository")
 }
 
-// Configuration interface for explicit configuration
-export interface TackConfig {
-	stack?: Stack
-	githubConnectionArn?: string
-}
+const config = new pulumi.Config()
 
-let _config: TackConfig = {}
-
-/**
- * Configure tack with explicit settings.
- * Call this at the start of your Pulumi program to override default behavior.
- */
-export function configure(config: TackConfig): void {
-	_config = { ..._config, ...config }
-}
-
-/**
- * Get the current stack. Uses configured value or falls back to Pulumi stack name.
- */
-export function getCurrentStack(): Stack {
-	return _config.stack ?? (pulumi.getStack() as unknown as Stack)
-}
-
-/**
- * Get the GitHub connection ARN for CodeBuild.
- */
-export function getGithubConnectionArn(): string {
-	if (_config.githubConnectionArn) {
-		return _config.githubConnectionArn
-	}
-	const config = new pulumi.Config()
-	return config.require('githubConnectionArn')
-}
-
-/**
- * Get the current AWS account ID.
- */
-export function getCurrentAccountId(): pulumi.Output<string> {
-	return pulumi.output(aws.getCallerIdentity()).accountId
-}
-
-// Backwards compatibility - these are now computed from the configuration
-export const currentStack = getCurrentStack()
-export const githubConnectorArn = isLocalStack(currentStack) ? '<invalid>' : (() => {
-	try {
-		return getGithubConnectionArn()
-	} catch {
-		return '<not-configured>'
-	}
-})()
-export const currentAccountId = getCurrentAccountId()
+export const currentStack = pulumi.getStack() as unknown as Stack
+export const githubConnectorArn = isLocalStack(currentStack) ? '<invalid>' : config.require('githubConnectionArn')
+export const currentAccountId = pulumi.output(aws.getCallerIdentity()).accountId
 
 export function stackSwitch<T>(config: Partial<Record<Stack, T>>, default_?: T): T {
-	return config[getCurrentStack()] ?? default_!
+	return config[currentStack] ?? default_!
 }
 
 export abstract class Resource<P, L = {}> {
@@ -104,7 +58,7 @@ export abstract class Resource<P, L = {}> {
 	private _backing: L | P
 
 	constructor(backing: L | P) {
-		this.stack = getCurrentStack()
+		this.stack = currentStack
 		this._backing = backing
 	}
 
