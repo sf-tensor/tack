@@ -268,6 +268,8 @@ phases:
 // Manager CodeBuild Project
 // ============================================
 export interface ManagerCodeBuildConfig {
+	repository: Repository
+	branch: string
 	serviceRole: aws.iam.Role
 	ecrRepoUrl: pulumi.Input<string>
 	sqsQueueUrl: pulumi.Input<string>

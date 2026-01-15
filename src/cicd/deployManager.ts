@@ -124,6 +124,8 @@ export function createDeploymentManager(args: ResourceArgs<DeploymentManagerConf
 	createManagerCodeBuildProject({
 		id: `${args.id}-manager-cb`,
 		region: args.region,
+		repository: args.managerRepository,
+		branch: args.managerBranch,
 		serviceRole: managerCodeBuildRole,
 		ecrRepoUrl: managerEcr.repositoryUrl,
 		sqsQueueUrl: deploymentQueue.queueUrl,

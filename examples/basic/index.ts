@@ -66,7 +66,7 @@ createBunApp({
   env: [{ name: "NODE_ENV", value: "production" }],
   ports: [{ name: "http", port: 3000 }],
   healthRoute: { path: "/api/health", port: 3000 },
-  taskLabelKey: "tack.sh/task-type",
+  taskLabelKey: "tack.dev/task-type",
   region,
   cluster,
   deploymentManager

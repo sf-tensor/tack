@@ -65,7 +65,7 @@ export interface BunAppConfig {
 	npmrc?: string
 	ports: { name: string, port: number }[]
 	healthRoute?: { path: string, port: number } // this is ignored in development, necessary in all other stacks
-	taskLabelKey?: string // label key applied to task CronJobs (default: "tack.sh/task-type")
+	taskLabelKey?: string // label key applied to task CronJobs (default: "tack.dev/task-type")
 
 	/** DevPod-specific configuration (only used in development) */
 	devPod?: DevPodConfig

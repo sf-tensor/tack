@@ -33,4 +33,4 @@ Apps send deployment tasks to the queue. In production stacks, tasks are represe
 
 ## Task labeling
 
-Task CronJobs are labeled so the manager can find them. The default label key is `tack.sh/task-type`, and can be customized per app in `BunAppConfig.taskLabelKey`.
+Task CronJobs are labeled so the manager can find them. The default label key is `tack.dev/task-type`, and can be customized per app in `BunAppConfig.taskLabelKey`.
