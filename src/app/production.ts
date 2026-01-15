@@ -14,6 +14,7 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 
 	const namespace = 'default'
 	const isLocal = isLocalStack(currentStack)
+	const taskLabelKey = args.taskLabelKey ?? 'tack.dev/task-type'
 
 	let tasks: (k8s.batch.v1.Job | k8s.batch.v1.CronJob)[] = []
 	let taskNames: string[] = []
@@ -53,7 +54,7 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 					name: jobName,
 					labels: {
 						'app': args.id,
-						'tack.dev/task-type': 'deployment-task'
+						[taskLabelKey]: 'deployment-task'
 					}
 				},
 				spec: {
