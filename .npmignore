@@ -1,0 +1,16 @@
+# Source (included via files in package.json)
+# tests/
+# examples/
+
+# Config
+tsconfig.json
+.gitignore
+.github/
+
+# IDE
+.idea/
+.vscode/
+
+# Docs (keep README)
+*.md
+!README.md
