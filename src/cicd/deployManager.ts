@@ -1,5 +1,5 @@
 import { Cluster } from "../cluster"
-import { currentStack, isLocalStack, ResourceArgs } from "../types"
+import { currentStack, isLocalStack, Repository, ResourceArgs } from "../types"
 import { createDeploymentManagerInCluster, createManagerEcrRepository } from "./manager"
 import { createDeploymentQueue } from "./sqs"
 import { createCodeBuildRole, createManagerCodeBuildRole, createManagerPodRole } from "./iam"
@@ -71,6 +71,8 @@ export class AWSDeploymentManager implements DeploymentManager {
 
 interface DeploymentManagerConfig {
 	cluster: Cluster
+	managerRepository: Repository
+	managerBranch: string
 }
 
 export function createDeploymentManager(args: ResourceArgs<DeploymentManagerConfig>): DeploymentManager {
@@ -119,6 +121,8 @@ export function createDeploymentManager(args: ResourceArgs<DeploymentManagerConf
 	createManagerCodeBuildProject({
 		id: `${args.id}-manager-cb`,
 		region: args.region,
+		repository: args.managerRepository,
+		branch: args.managerBranch,
 		serviceRole: managerCodeBuildRole,
 		ecrRepoUrl: managerEcr.repositoryUrl,
 		sqsQueueUrl: deploymentQueue.queueUrl

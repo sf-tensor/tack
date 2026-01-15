@@ -268,20 +268,22 @@ phases:
 // Manager CodeBuild Project
 // ============================================
 export interface ManagerCodeBuildConfig {
+	repository: Repository
+	branch: string
 	serviceRole: aws.iam.Role
 	ecrRepoUrl: pulumi.Input<string>
 	sqsQueueUrl: pulumi.Input<string>
 }
 
 export function createManagerCodeBuildProject(args: ResourceArgs<ManagerCodeBuildConfig>): aws.codebuild.Project {
-	const sourceLocation = 'https://github.com/sf-tensor/cicd-manager.git'
+	const sourceLocation = `https://github.com/${args.repository.org}/${args.repository.repo}.git`
 
 	const project = new aws.codebuild.Project(`cicd-manager-codebuild`, {
 		name: `${currentStack}-cicd-manager`,
 		description: `Build project for CI/CD Manager in ${currentStack}`,
 		buildTimeout: 15,
 		serviceRole: args.serviceRole.arn,
-		sourceVersion: 'master',
+		sourceVersion: args.branch,
 
 		source: {
 			type: 'GITHUB',
@@ -341,7 +343,7 @@ export function createManagerCodeBuildProject(args: ResourceArgs<ManagerCodeBuil
 				},
 				{
 					type: 'HEAD_REF',
-					pattern: '^refs/heads/master$'
+					pattern: `^refs/heads/${args.branch}$`
 				}
 			]
 		}]

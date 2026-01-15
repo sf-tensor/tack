@@ -53,7 +53,7 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 					name: jobName,
 					labels: {
 						'app': args.id,
-						'cicd.sf-tensor.com/task-type': 'deployment-task'
+						'tack.dev/task-type': 'deployment-task'
 					}
 				},
 				spec: {
