@@ -29,10 +29,7 @@ Thank you for your interest in contributing to Tack! This document provides guid
    npm run build
    ```
 
-4. Run type checking:
-   ```bash
-   npm run lint
-   ```
+4. Verify the build completes without errors
 
 ## Making Changes
 
@@ -77,9 +74,8 @@ Tack automatically adapts to different Pulumi stacks. When adding new features:
 1. Fork the repository and create a feature branch
 2. Make your changes with clear, focused commits
 3. Ensure the project builds without errors: `npm run build`
-4. Ensure type checking passes: `npm run lint`
-5. Update documentation if needed
-6. Submit a pull request with a clear description of changes
+4. Update documentation if needed
+5. Submit a pull request with a clear description of changes
 
 ## Reporting Issues
 
@@ -90,6 +86,48 @@ When reporting issues, please include:
 - Expected vs actual behavior
 - Pulumi and Node.js versions
 - Relevant stack configuration
+
+## Releasing (Maintainers)
+
+Releases are automated via GitHub Actions when a version tag is pushed.
+
+### Release Process
+
+1. Update the version in `package.json`:
+   ```bash
+   npm version patch  # or minor, major
+   ```
+
+2. Update `CHANGELOG.md` with the new version and changes
+
+3. Commit the version bump:
+   ```bash
+   git add package.json package-lock.json CHANGELOG.md
+   git commit -m "Release vX.Y.Z"
+   ```
+
+4. Create and push the tag:
+   ```bash
+   git tag vX.Y.Z
+   git push origin master --tags
+   ```
+
+5. The release workflow will automatically:
+   - Build the project
+   - Verify the tag matches `package.json` version
+   - Publish to npm with provenance
+   - Create a GitHub Release with auto-generated notes
+
+### Pre-releases
+
+For pre-release versions (alpha, beta, rc), use:
+```bash
+npm version prerelease --preid=alpha  # 0.1.0 -> 0.1.1-alpha.0
+npm version prerelease --preid=beta   # 0.1.0 -> 0.1.1-beta.0
+npm version prerelease --preid=rc     # 0.1.0 -> 0.1.1-rc.0
+```
+
+Pre-release tags (containing `-`) are automatically marked as pre-releases on GitHub.
 
 ## License
 
