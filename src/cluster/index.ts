@@ -236,6 +236,14 @@ export function createCluster(args: ResourceArgs<ClusterConfig>): Cluster {
 		privateSubnetIds: args.privateSubnets.map(subnet => subnet.subnetId()),
 		skipDefaultNodeGroup: true, // we create our own node group below
 
+		enabledClusterLogTypes: currentStack === 'production' ? [
+			"api",
+			"audit",
+			"authenticator",
+			"controllerManager",
+			"scheduler",	
+		] : undefined,
+
 		useDefaultVpcCni: true,
 		upgradePolicy: {
 			supportType: 'STANDARD'

@@ -54,10 +54,10 @@ async function startDevServer(): Promise<{ success: boolean; message: string }> 
 	}
 
 	processState.status = 'starting'
-	addLog('[DevPod] Starting Next.js dev server...')
+	addLog('[DevPod] Starting dev server...')
 
 	try {
-		const proc = spawn('npm', ['run', 'dev'], {
+		const proc = spawn('bun', ['run', 'dev'], {
 			cwd: APP_DIR,
 			env: { ...process.env, NODE_ENV: 'development' },
 			shell: true
@@ -139,7 +139,7 @@ async function startProdServer(): Promise<{ success: boolean; message: string }>
 	addLog('[DevPod] Building for production...')
 
 	const buildResult = await new Promise<{ success: boolean; message: string }>((resolve) => {
-		const buildProc = spawn('npm', ['run', 'build'], {
+		const buildProc = spawn('bun', ['run', 'build'], {
 			cwd: APP_DIR,
 			env: { ...process.env, NODE_ENV: 'production' },
 			shell: true
@@ -180,7 +180,7 @@ async function startProdServer(): Promise<{ success: boolean; message: string }>
 	addLog('[DevPod] Starting production server...')
 
 	try {
-		const proc = spawn('npm', ['run', 'start'], {
+		const proc = spawn('bun', ['run', 'start'], {
 			cwd: APP_DIR,
 			env: { ...process.env, NODE_ENV: 'production' },
 			shell: true

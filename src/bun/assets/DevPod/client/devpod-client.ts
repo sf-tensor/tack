@@ -513,6 +513,13 @@ class DevPodClient {
 			this.logStreamAbortController.abort()
 		}
 
+		// Stop the remote dev process before killing port-forward
+		try {
+			await this.stop()
+		} catch (e) {
+			// Ignore errors - port-forward may already be down
+		}
+
 		if (this.portForwardProcess) {
 			this.portForwardProcess.kill()
 			console.log('\nPort forwarding stopped')
@@ -626,7 +633,7 @@ Options:
   -c, --control-port <port>  Control port (default: derived from pod name)
   -a, --app-port <mapping>   App port mapping. Can be specified multiple times.
                              Format: local:remote or just port (for same local/remote)
-                             Default: derived from pod name -> 3000
+                             No app ports are forwarded by default.
   -p, --path <path>          Local project path (default: current directory)
 
 Examples:
@@ -646,7 +653,9 @@ async function main() {
 		process.exit(0)
 	}
 
-	const appPortsStr = config.appPorts.map(p => p.local === p.remote ? `${p.local}` : `${p.local}:${p.remote}`).join(', ')
+	const appPortsStr = config.appPorts.length > 0
+		? config.appPorts.map(p => p.local === p.remote ? `${p.local}` : `${p.local}:${p.remote}`).join(', ')
+		: 'none'
 	console.log(`DevPod: ${config.podName} (control: ${config.controlPort}, app: ${appPortsStr})`)
 
 	const connected = await client.setupPortForwarding()
