@@ -222,10 +222,10 @@ async function startProdServer(): Promise<{ success: boolean; message: string }>
 }
 
 async function runInstall(): Promise<{ success: boolean; message: string }> {
-	addLog('[DevPod] Running bun install...')
+	addLog('[DevPod] Running npm install...')
 
 	try {
-		const proc = spawn('bun', ['install'], {
+		const proc = spawn('npm', ['install'], {
 			cwd: APP_DIR,
 			shell: true
 		})

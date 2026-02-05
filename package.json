@@ -1,6 +1,6 @@
 {
   "name": "@sf-tensor/tack",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Pulumi components for AWS + Kubernetes infrastructure.",
   "license": "MIT",
   "main": "dist/index.js",
