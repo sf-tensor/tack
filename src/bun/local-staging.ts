@@ -6,7 +6,7 @@ import { execSync } from "child_process"
 import { BunApp } from "./index"
 import { buildImage } from "../docker/builder"
 import { readSecretsFile } from "../secrets/local"
-import { BunAppConfig, EnvEntry } from "./types"
+import { BunAppConfig, BunAppOutputs, EnvEntry, getAppWorkloads, combineBunAppOutputs } from "./types"
 import { getOrigin, ResourceArgs } from "../types"
 import { createBunKubernetesDeployment } from "./production"
 
@@ -71,26 +71,49 @@ export function createBunLocalStagingApp(args: ResourceArgs<BunAppConfig>): BunA
 		}
 
 		// Create .env file with public env vars (mirrors CodeBuild behavior)
-		const envFile = path.join(tempDir, '.env')
-		const publicEnvVars = args.env
-			.filter((e) => e.isPublic === true)
-			.map((e) => `${e.name}="${resolvePublicEnvValue(e)}"`)
-			.join('\n')
-		fs.writeFileSync(envFile, publicEnvVars)
+		const workloads = getAppWorkloads(args)
+		const outputsByWorkload: { name: string, outputs: BunAppOutputs }[] = []
 
-		const secrets = [
-			{ id: 'env', src: envFile },
-			...(args.npmrc ? [{ id: 'npmrc', src: npmrcFile }] : [])
-		]
+		for (const workload of workloads) {
+			const envFile = path.join(tempDir, `.env.${workload.name}`)
+			const publicEnvVars = workload.env
+				.filter((e) => e.isPublic === true)
+				.map((e) => `${e.name}="${resolvePublicEnvValue(e)}"`)
+				.join('\n')
+			fs.writeFileSync(envFile, publicEnvVars)
 
-		const imageTag = buildImage(args.id, args.localPath, dockerFile, secrets)
-		let tasksImageTag: string | null = null
-		if ((args.tasks?.length ?? 0) > 0) {
-			const tasksDockerFile = path.join(__dirname, 'assets', 'Dockerfile.tasks')
-			tasksImageTag = buildImage(`${args.id}-tasks`, args.localPath, tasksDockerFile, secrets)
+			const secrets = [
+				{ id: 'env', src: envFile },
+				...(args.npmrc ? [{ id: 'npmrc', src: npmrcFile }] : [])
+			]
+
+			const imageTag = buildImage(workload.id, args.localPath, dockerFile, {
+				secrets,
+				buildArgs: { BUILD_TASK: workload.buildTask }
+			})
+			let tasksImageTag: string | null = null
+			if ((workload.tasks?.length ?? 0) > 0) {
+				const tasksDockerFile = path.join(__dirname, 'assets', 'Dockerfile.tasks')
+				tasksImageTag = buildImage(`${workload.id}-tasks`, args.localPath, tasksDockerFile, { secrets })
+			}
+
+			const workloadArgs: ResourceArgs<BunAppConfig> = {
+				...args,
+				id: workload.id,
+				env: workload.env,
+				ports: workload.ports,
+				healthRoute: workload.healthRoute,
+				tasks: workload.tasks,
+				containers: undefined
+			}
+
+			outputsByWorkload.push({
+				name: workload.name,
+				outputs: createBunKubernetesDeployment(workloadArgs, imageTag, tasksImageTag)
+			})
 		}
 
-		return createBunKubernetesDeployment(args, imageTag, tasksImageTag)
+		return new BunApp(combineBunAppOutputs(outputsByWorkload), {})
 	} finally {
 		fs.rmSync(tempDir, { recursive: true })
 	}

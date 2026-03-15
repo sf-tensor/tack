@@ -12,11 +12,11 @@ import { createCodeBuildProject, createManagerCodeBuildProject } from "./codebui
 import { EcrRepositories } from "./ecr"
 
 export interface DeploymentManager {
-	createBunAppDeployPipeline(app: BunApp, args: ResourceArgs<BunAppConfig>, ecrRepos: EcrRepositories): void
+	createBunAppDeployPipeline(app: BunApp, args: ResourceArgs<BunAppConfig>, ecrRepos: EcrRepositories, buildTask: string): void
 }
 
 export class LocalDeploymentManager implements DeploymentManager {
-	createBunAppDeployPipeline(app: BunApp, args: ResourceArgs<BunAppConfig>, ecrRepos: EcrRepositories): void {
+	createBunAppDeployPipeline(app: BunApp, args: ResourceArgs<BunAppConfig>, ecrRepos: EcrRepositories, buildTask: string): void {
 		throw new Error("Local deployment manager is not implemented")
 	}
 }
@@ -30,7 +30,7 @@ export class AWSDeploymentManager implements DeploymentManager {
 		this.sqsQueueUrl = sqsQueueUrl
 	}
 
-    createBunAppDeployPipeline(app: BunApp, args: ResourceArgs<BunAppConfig>, repos: EcrRepositories): void {
+    createBunAppDeployPipeline(app: BunApp, args: ResourceArgs<BunAppConfig>, repos: EcrRepositories, buildTask: string): void {
 		let publicEnvs = args.env
 			.filter((e) => e.isPublic === true)
 
@@ -56,6 +56,7 @@ export class AWSDeploymentManager implements DeploymentManager {
 			repository: args.repository,
 			runtime: args.runtime,
 			hasTasks: app.tasks.length > 0,
+			buildTask,
 			serviceRole: codeBuildRole,
 			ecrMainRepoUrl: repos.mainRepoUrl,
 			ecrTasksRepoUrl: repos.tasksRepoUrl,

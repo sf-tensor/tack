@@ -2,15 +2,15 @@ import * as aws from '@pulumi/aws'
 import * as k8s from '@pulumi/kubernetes'
 import * as pulumi from '@pulumi/pulumi'
 
-import { BunApp } from "./index"
+import { BunApp } from './index'
 import { createOidcRole } from '../iam/role'
 import { createLocalSecretsForApp } from '../secrets/local'
 import { createAppEcrRepositories } from '../cicd/ecr'
-import { currentAccountId, currentStack, isLocalStack, ResourceArgs } from "../types"
-import { getEnvironmentVariables, BunAppConfig, NativeSecretEnvEntry, getNativeSecretKey, getSecretArn } from "./types"
+import { currentAccountId, currentStack, isLocalStack, ResourceArgs } from '../types'
+import { BunAppConfig, BunAppOutputs, NativeSecretEnvEntry, combineBunAppOutputs, getAppWorkloads, getEnvironmentVariables, getNativeSecretKey, getSecretArn } from './types'
 
-export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, imageName: pulumi.Input<string>, tasksImageName: pulumi.Input<string> | null): BunApp {
-	if (args.healthRoute == null) throw new Error("healthRoute is required in non-development stacks")
+export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, imageName: pulumi.Input<string>, tasksImageName: pulumi.Input<string> | null): BunAppOutputs {
+	if (args.healthRoute == null) throw new Error('healthRoute is required in non-development stacks')
 
 	const namespace = 'default'
 	const isLocal = isLocalStack(currentStack)
@@ -71,7 +71,7 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 									restartPolicy: 'OnFailure',
 									containers: [{
 										name: 'task',
-										image: 'placeholder:latest',
+										image: tasksImageName ?? 'placeholder:latest',
 										command: ['/bin/sh', '-c'],
 										args: [`bun run ${task.command}`],
 										env: getEnvironmentVariables(args.env, args.id)
@@ -107,7 +107,7 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 		sa = new k8s.core.v1.ServiceAccount(`${args.id}-sa`, {
 			metadata: {
 				name: args.id,
-				namespace: "default"
+				namespace: 'default'
 			}
 		}, { provider: args.cluster.provider })
 
@@ -131,12 +131,12 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 			new aws.iam.RolePolicy(`${args.id}-secrets-policy`, {
 				role: role.name,
 				policy: pulumi.all(secretArns).apply(arns => JSON.stringify({
-					Version: "2012-10-17",
+					Version: '2012-10-17',
 					Statement: [{
-						Effect: "Allow",
+						Effect: 'Allow',
 						Action: [
-							"secretsmanager:GetSecretValue",
-							"secretsmanager:DescribeSecret",
+							'secretsmanager:GetSecretValue',
+							'secretsmanager:DescribeSecret',
 						],
 						Resource: arns.filter((value, index, arr) => arr.indexOf(value) === index),
 					}]
@@ -147,30 +147,30 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 		sa = new k8s.core.v1.ServiceAccount(`${args.id}-sa`, {
 			metadata: {
 				name: args.id,
-				namespace: "default",
+				namespace: 'default',
 				annotations: {
-					"eks.amazonaws.com/role-arn": role.arn
+					'eks.amazonaws.com/role-arn': role.arn
 				},
 			},
 		}, { provider: args.cluster.provider })
 
 		secretProvider = new k8s.apiextensions.CustomResource(`${args.id}-aws-secrets`, {
-			apiVersion: "secrets-store.csi.x-k8s.io/v1",
-			kind: "SecretProviderClass",
+			apiVersion: 'secrets-store.csi.x-k8s.io/v1',
+			kind: 'SecretProviderClass',
 			metadata: {
 				name: `${args.id}-aws-secrets`,
-				namespace: "default",
+				namespace: 'default',
 			},
 			spec: {
-				provider: "aws",
+				provider: 'aws',
 				parameters: {
 					region: args.region,
 					objects: pulumi.output(pulumi.output(nativeSecrets).apply(secrets => {
-						const grouped = new Map<string, typeof secrets>();
+						const grouped = new Map<string, typeof secrets>()
 						for (const s of secrets) {
-							const existing = grouped.get(s.secretName) ?? [];
-							existing.push(s);
-							grouped.set(s.secretName, existing);
+							const existing = grouped.get(s.secretName) ?? []
+							existing.push(s)
+							grouped.set(s.secretName, existing)
 						}
 
 						const objects = Array.from(grouped.entries()).map(([secretName, entries]) => {
@@ -180,18 +180,18 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 							if (withKeys.length > 0) {
 								return {
 									objectName: secretName,
-									objectType: "secretsmanager",
+									objectType: 'secretsmanager',
 									jmesPath: withKeys.map(e => ({
 										path: e.key!,
 										objectAlias: getNativeSecretKey(e)
 									})),
 								}
-							} else {
-								return {
-									objectName: secretName,
-									objectType: "secretsmanager",
-									objectAlias: getNativeSecretKey(withoutKeys[0])
-								}
+							}
+
+							return {
+								objectName: secretName,
+								objectType: 'secretsmanager',
+								objectAlias: getNativeSecretKey(withoutKeys[0])
 							}
 						})
 
@@ -200,7 +200,7 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 				},
 				secretObjects: [{
 					secretName: `${args.id}-aws-secrets`,
-					type: "Opaque",
+					type: 'Opaque',
 					data: pulumi.output(nativeSecrets).apply(secrets =>
 						secrets.map(s => ({
 							objectName: getNativeSecretKey(s),
@@ -214,30 +214,28 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 		deploymentDependencies.push(secretProvider, sa)
 	}
 
-	// Build deployment spec - only include CSI volume mounts for production
 	const containerSpec: k8s.types.input.core.v1.Container = {
 		name: 'application',
 		image: imageName,
 		imagePullPolicy: 'IfNotPresent',
 		ports: args.ports.map((p) => ({ containerPort: p.port, name: p.name })),
 		env: [
-			{ name: "NODE_ENV", value: "production" },
-			{ name: "STACK", value: currentStack },
+			{ name: 'NODE_ENV', value: 'production' },
+			{ name: 'STACK', value: currentStack },
 			...getEnvironmentVariables(args.env, args.id)
 		],
 		readinessProbe: {
-			httpGet: { path: args.healthRoute!.path, port: args.healthRoute!.port },
+			httpGet: { path: args.healthRoute.path, port: args.healthRoute.port },
 			initialDelaySeconds: 5,
 			periodSeconds: 10
 		},
 		livenessProbe: {
-			httpGet: { path: args.healthRoute!.path, port: args.healthRoute!.port },
+			httpGet: { path: args.healthRoute.path, port: args.healthRoute.port },
 			initialDelaySeconds: 15,
 			periodSeconds: 20
 		}
 	}
 
-	// Only add CSI volume mounts for production (not local)
 	if (!isLocal) {
 		containerSpec.volumeMounts = [{
 			name: 'secrets-store',
@@ -251,7 +249,6 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 		containers: [containerSpec]
 	}
 
-	// Only add CSI volumes for production (not local)
 	if (!isLocal && secretProvider) {
 		podSpec.volumes = [{
 			name: 'secrets-store',
@@ -269,7 +266,7 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 		metadata: {
 			name: args.id,
 			annotations: {
-				"pulumi.com/patchForce": "true",
+				'pulumi.com/patchForce': 'true',
 			}
 		},
 		spec: {
@@ -291,28 +288,48 @@ export function createBunKubernetesDeployment(args: ResourceArgs<BunAppConfig>, 
 		}
 	}, { dependsOn: [deployment], provider: args.cluster.provider })
 
-	return new BunApp({
+	return {
 		deployment,
 		service,
 		tasks,
 		taskNames,
 		iamRole: role
-	}, {})
+	}
 }
 
 export function createBunProductionApp(
 	args: ResourceArgs<BunAppConfig>
 ): BunApp {
-	const hasTasks = (args.tasks?.length ?? 0) > 0
+	const workloads = getAppWorkloads(args)
+	const outputsByWorkload: { name: string, outputs: BunAppOutputs }[] = []
 
-	const ecrRepos = createAppEcrRepositories({
-		id: `${args.id}-ecr`,
-		appId: args.id,
-		includeTasksRepo: hasTasks,
-		region: args.region
-	})
+	for (const workload of workloads) {
+		const workloadArgs: ResourceArgs<BunAppConfig> = {
+			...args,
+			id: workload.id,
+			env: workload.env,
+			ports: workload.ports,
+			healthRoute: workload.healthRoute,
+			tasks: workload.tasks,
+			containers: undefined
+		}
+		const hasTasks = (workload.tasks?.length ?? 0) > 0
+		const ecrRepos = createAppEcrRepositories({
+			id: `${workload.id}-ecr`,
+			appId: workload.id,
+			includeTasksRepo: hasTasks,
+			region: args.region
+		})
 
-	const app = createBunKubernetesDeployment(args, ecrRepos.mainRepoUrl.apply(url => `${url}:latest`), ecrRepos.tasksRepoUrl?.apply(url => `${url}:latest`) ?? null)
-	args.deploymentManager.createBunAppDeployPipeline(app, args, ecrRepos)
-	return app
+		const outputs = createBunKubernetesDeployment(
+			workloadArgs,
+			ecrRepos.mainRepoUrl.apply(url => `${url}:latest`),
+			ecrRepos.tasksRepoUrl?.apply(url => `${url}:latest`) ?? null
+		)
+
+		args.deploymentManager.createBunAppDeployPipeline(new BunApp(outputs, {}), workloadArgs, ecrRepos, workload.buildTask)
+		outputsByWorkload.push({ name: workload.name, outputs })
+	}
+
+	return new BunApp(combineBunAppOutputs(outputsByWorkload), {})
 }

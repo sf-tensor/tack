@@ -91,6 +91,46 @@ createBunApp({
 
 See `examples/basic` for a fuller walkthrough.
 
+## Multi-workload apps
+
+One `createBunApp` call can now fan out into multiple related workloads from the same repo. Each workload gets its own Deployment, Service, image, and CI/CD pipeline, while still sharing the app-level defaults you define.
+
+```ts
+const app = createBunApp({
+  id: "app",
+  runtime: "base",
+  localPath: "/path/to/app",
+  repository: { type: "github", org: "your-org", repo: "app" },
+  branch: "main",
+  env: [{ name: "NODE_ENV", value: "production" }],
+  ports: [{ name: "http", port: 3000 }],
+  healthRoute: { path: "/health", port: 3000 },
+  containers: [
+    {
+      name: "api",
+      buildTask: "build",
+      env: [{ name: "PORT", value: "3000" }]
+    },
+    {
+      name: "rates",
+      buildTask: "build:rates",
+      env: [{ name: "PORT", value: "3001" }],
+      ports: [{ name: "http", port: 3001 }],
+      healthRoute: { path: "/health", port: 3001 }
+    }
+  ],
+  region,
+  cluster,
+  deploymentManager
+});
+
+// Primary workload
+export const apiService = app.service.metadata.name;
+
+// Secondary workloads
+export const ratesService = app.services.rates.metadata.name;
+```
+
 ## Docs
 
 - [docs/OVERVIEW.md](docs/OVERVIEW.md)
@@ -133,6 +173,7 @@ The deployment manager is a companion service that handles deployment tasks and 
 
 - This repo assumes AWS + EKS + CodeBuild and does not aim to abstract those away.
 - Some defaults (resource names, labels) reflect our internal workflows; you should expect to adjust them.
+- Bun app tasks still attach to the primary workload when `containers[]` is used.
 - We do not currently support GovCloud out of the box.
 
 ## License

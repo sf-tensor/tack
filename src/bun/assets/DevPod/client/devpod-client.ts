@@ -707,6 +707,9 @@ async function main() {
 				await client.cleanup()
 				process.exit(1)
 			}
+			await client.initialSync()
+			await client.install()
+
 			await client.run(parsed.extra[0])
 			await client.cleanup()
 			break

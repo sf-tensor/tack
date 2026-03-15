@@ -9,6 +9,7 @@ This document covers application deployment with `createBunApp` and related clas
 - [BunApp Class](#bunapp-class)
 - [Role Class](#role-class)
 - [Environment Variables](#environment-variables)
+- [Containers](#containers)
 - [Tasks](#tasks)
 - [DevPod Configuration](#devpod-configuration)
 - [Complete Examples](#complete-examples)
@@ -53,6 +54,7 @@ function createBunApp(args: ResourceArgs<BunAppConfig>): BunApp
 | `env` | `EnvEntry[]` | Yes | Environment variables |
 | `ports` | `Port[]` | Yes | Container ports to expose |
 | `healthRoute` | `HealthRoute` | No | Health check configuration |
+| `containers` | `Container[]` | No | Explicit application containers and their build tasks |
 | `tasks` | `Task[]` | No | Background tasks/jobs |
 | `taskLabelKey` | `string` | No | Label key for tasks (default: `tack.dev/task-type`) |
 | `npmrc` | `string` | No | Custom .npmrc content |
@@ -104,7 +106,9 @@ The `BunApp` class represents a deployed application with all its Kubernetes res
 | Property | Type | Description |
 |----------|------|-------------|
 | `service` | `k8s.core.v1.Service` | Kubernetes Service |
+| `services` | `Record<string, Service>` | Services by logical container/workload name |
 | `deployment` | `k8s.apps.v1.Deployment` | Kubernetes Deployment |
+| `deployments` | `Record<string, Deployment>` | Deployments by logical container/workload name |
 | `tasks` | `(Job \| CronJob)[]` | Task jobs/cronjobs |
 | `taskNames` | `string[]` | Names of configured tasks |
 | `role` | `Role` | IAM role wrapper |
@@ -119,6 +123,10 @@ export const serviceName = app.service.metadata.name;
 
 // Export deployment name
 export const deploymentName = app.deployment.metadata.name;
+
+// Access secondary workloads when containers are configured
+export const ratesService = app.services.rates.metadata.name;
+export const ratesDeployment = app.deployments.rates.metadata.name;
 
 // Get task names
 console.log(app.taskNames);  // ["migrate", "seed"]
@@ -322,6 +330,54 @@ const app = createBunApp({
   ]
 });
 ```
+
+---
+
+## Containers
+
+By default, Tack builds and deploys a single workload with `bun run build`.
+
+If you need multiple related workloads from one repo, define `containers`:
+
+```typescript
+const app = createBunApp({
+  // ...
+  runtime: "base",
+  containers: [
+    {
+      name: "api",
+      buildTask: "build",
+      env: [{ name: "PORT", value: "3000" }],
+      ports: [{ name: "http", port: 3000 }],
+      healthRoute: { path: "/health", port: 3000 }
+    },
+    {
+      name: "rates",
+      buildTask: "build:rates",
+      env: [{ name: "PORT", value: "3001" }],
+      ports: [{ name: "http", port: 3001 }],
+      healthRoute: { path: "/health", port: 3001 }
+    }
+  ],
+  ports: [{ name: "http", port: 3000 }],
+  healthRoute: { path: "/health", port: 3000 }
+});
+```
+
+Each container becomes its own Kubernetes Deployment, Service, ECR repository, and CodeBuild pipeline. App-level `env`, `ports`, and `healthRoute` are defaults; container-level values override them for that workload.
+
+Each `buildTask` must produce the same runtime artifact shape as the normal app build for the selected runtime:
+
+- `base`: a runnable `main.js`
+- `next`: a runnable standalone `server.js`
+
+Behavior:
+
+- The first container is treated as the primary workload and remains available as `app.service` and `app.deployment`.
+- All workloads are also exposed via `app.services.<name>` and `app.deployments.<name>`.
+- Each workload scales independently because it is deployed separately.
+- Each workload is built as a separate image, so container-specific runtime artifacts do not inflate the other images.
+- App tasks still attach to the primary workload.
 
 ---
 

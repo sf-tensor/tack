@@ -12,7 +12,8 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN --mount=type=secret,id=env cp /run/secrets/env .env.local && source /run/secrets/env && bun run build
+ARG BUILD_TASK="build"
+RUN --mount=type=secret,id=env cp /run/secrets/env .env.local && source /run/secrets/env && bun run "$BUILD_TASK"
 
 # Stage 3: Production server
 FROM oven/bun:distroless AS runner

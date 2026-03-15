@@ -41,9 +41,16 @@ Created for each `BunApp` to build application images.
 
 **Features:**
 - Triggered by GitHub push
-- Builds Docker image from repository
+- Builds a workload-specific Docker image from the repository
 - Pushes to ECR
 - Sends deployment task to SQS
+
+When a Bun app defines `containers`, Tack creates one CodeBuild project per workload. Each project:
+
+- Uses the same source repository and branch
+- Passes the workload's `buildTask` into Docker as `BUILD_TASK`
+- Pushes to that workload's own ECR repository
+- Sends deployment messages for that workload's Deployment
 
 **Build Phases:**
 
@@ -58,8 +65,8 @@ phases:
 
   build:
     commands:
-      # Build main image
-      - docker build -t $ECR_REPO_URL:$CODEBUILD_RESOLVED_SOURCE_VERSION .
+      # Build workload image
+      - docker build --build-arg BUILD_TASK="$BUILD_TASK" -t $ECR_REPO_URL:$CODEBUILD_RESOLVED_SOURCE_VERSION .
       - docker push $ECR_REPO_URL:$CODEBUILD_RESOLVED_SOURCE_VERSION
       - docker tag $ECR_REPO_URL:$CODEBUILD_RESOLVED_SOURCE_VERSION $ECR_REPO_URL:latest
       - docker push $ECR_REPO_URL:latest
@@ -86,8 +93,8 @@ Builds the deployment manager service.
 
 | Repository | Purpose |
 |------------|---------|
-| `{app-id}-main` | Main application images |
-| `{app-id}-tasks` | Task runner images (if tasks defined) |
+| `{workload-id}-main` | Workload application images |
+| `{workload-id}-tasks` | Task runner images (if tasks are defined on that workload) |
 | `{manager-id}` | Deployment manager images |
 
 ### Image Tags
@@ -160,6 +167,7 @@ For larger builds, the instance type can be configured in the CodeBuild project.
 | `AWS_REGION` | AWS region |
 | `ECR_REPO_URL` | ECR repository URL |
 | `SQS_QUEUE_URL` | Deployment queue URL |
+| `BUILD_TASK` | Bun build task for the current workload |
 | `CODEBUILD_RESOLVED_SOURCE_VERSION` | Git commit SHA |
 
 #### App-Defined Variables

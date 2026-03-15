@@ -90,6 +90,29 @@ const lb = createLoadBalancer({
 export const loadBalancerHostname = lb.albHostname;
 ```
 
+### Routing Multiple Bun Workloads
+
+When a Bun app is configured with `containers`, each workload gets its own Service. Route them explicitly through `app.services`:
+
+```typescript
+const app = createBunApp({ /* ... */ });
+
+const lb = createLoadBalancer({
+  name: "main-lb",
+  cluster,
+  healthCheckPath: "/health",
+  rules: [
+    {
+      host: "app.example.com",
+      routes: [
+        { path: "/", service: app.service.metadata.name, port: 3000 },
+        { path: "/rates", service: app.services.rates.metadata.name, port: 3001 }
+      ]
+    }
+  ]
+});
+```
+
 ---
 
 ## Certificate Management

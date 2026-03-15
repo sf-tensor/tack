@@ -16,6 +16,7 @@ export interface CodeBuildProjectConfig {
 	repository: Repository
 	runtime: 'next' | 'base'
 	hasTasks: boolean
+	buildTask: string
 	serviceRole: aws.iam.Role
 	ecrMainRepoUrl: pulumi.Input<string>
 	ecrTasksRepoUrl?: pulumi.Input<string>
@@ -78,6 +79,7 @@ export function createCodeBuildProject(args: ResourceArgs<CodeBuildProjectConfig
 				{ name: 'RUNTIME', value: args.runtime },
 				{ name: 'DOCKERFILE', value: dockerfileName },
 				{ name: 'HAS_TASKS', value: args.hasTasks ? 'true' : 'false' },
+				{ name: 'BUILD_TASK', value: args.buildTask },
 				{ name: 'TASK_CRONJOB_IDS', value: args.taskCronJobIds.join(',') },
 				{
 					name: 'ECR_MAIN_REPO',
@@ -167,7 +169,7 @@ function generateBuildspec(config: BuildspecConfig): string {
       - echo "${tasksDockerfileBase64}" | base64 -d > Dockerfile.tasks`
 		: ''
 
-	let envVariables = config.envVariables
+	const envVariables = [...config.envVariables]
 	envVariables.push('COMMIT_HASH')
 	envVariables.push('DEPLOYMENT_ID')
 	envVariables.push('STACK')
@@ -203,9 +205,9 @@ phases:
       - echo Building main image with $DOCKERFILE...
       - |
         if [ -f .npmrc ]; then
-          docker build -f $DOCKERFILE --secret id=env,src=.env --secret id=npmrc,src=.npmrc -t $ECR_MAIN_REPO:$IMAGE_TAG -t $ECR_MAIN_REPO:latest .
+          docker build -f $DOCKERFILE --build-arg BUILD_TASK="$BUILD_TASK" --secret id=env,src=.env --secret id=npmrc,src=.npmrc -t $ECR_MAIN_REPO:$IMAGE_TAG -t $ECR_MAIN_REPO:latest .
         else
-          docker build -f $DOCKERFILE --secret id=env,src=.env -t $ECR_MAIN_REPO:$IMAGE_TAG -t $ECR_MAIN_REPO:latest .
+          docker build -f $DOCKERFILE --build-arg BUILD_TASK="$BUILD_TASK" --secret id=env,src=.env -t $ECR_MAIN_REPO:$IMAGE_TAG -t $ECR_MAIN_REPO:latest .
         fi
 
       - |

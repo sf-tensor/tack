@@ -11,7 +11,7 @@ import { createBunProductionApp } from './production'
 import { Bucket } from '../bucket'
 
 export { generateNpmRc } from './util'
-export type { DevPodConfig, BunAppConfig, EnvEntry } from './types'
+export type { DevPodConfig, BunAppConfig, BunContainerConfig, EnvEntry } from './types'
 
 export class Role extends Resource<{ role: aws.iam.Role }, {}> {
 	protected policyCounter = 0
@@ -71,9 +71,11 @@ export class Role extends Resource<{ role: aws.iam.Role }, {}> {
 
 export class BunApp extends Resource<{}> {
 	public readonly service: k8s.core.v1.Service
+	public readonly services: Record<string, k8s.core.v1.Service>
 	public readonly taskNames: string[]
 	public readonly tasks: (k8s.batch.v1.Job | k8s.batch.v1.CronJob)[]
 	public readonly deployment: k8s.apps.v1.Deployment
+	public readonly deployments: Record<string, k8s.apps.v1.Deployment>
 	public readonly role: Role
 
 	constructor(outputs: BunAppOutputs, backing: {}) {
@@ -81,8 +83,10 @@ export class BunApp extends Resource<{}> {
 
 		this.tasks = outputs.tasks
 		this.service = outputs.service
+		this.services = outputs.services ?? { application: outputs.service }
 		this.taskNames = outputs.taskNames
 		this.deployment = outputs.deployment
+		this.deployments = outputs.deployments ?? { application: outputs.deployment }
 		this.role = outputs.iamRole
 			? new Role({ role: outputs.iamRole })
 			: new Role({})

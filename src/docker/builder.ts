@@ -7,12 +7,17 @@ import { execSync } from "child_process"
 
 const BUILD_CONTEXT_IGNORE_PATTERNS = ['node_modules', '.git', '.DS_Store', 'bun.lock']
 
+interface BuildImageOptions {
+	secrets?: { id: string, src: string }[]
+	buildArgs?: Record<string, string>
+}
+
 /**
  * Recursively computes a SHA256 hash of all files in a directory,
  * excluding specified patterns. Files are processed in sorted order
  * for deterministic hashing.
  */
-function computeDirectoryHash(dir: string): string {
+function computeDirectoryHash(dir: string, extraInputs: string[] = []): string {
 	const hash = crypto.createHash('sha256')
 
 	function shouldIgnore(filePath: string): boolean {
@@ -40,6 +45,9 @@ function computeDirectoryHash(dir: string): string {
 	}
 
 	processDirectory(dir)
+	for (const input of extraInputs) {
+		hash.update(`extra:${input}`)
+	}
 	return hash.digest('hex').substring(0, 16)
 }
 
@@ -62,8 +70,10 @@ export function buildImage(
 	imageName: string,
 	sourceDir: string,
 	dockerfilePath: string,
-	secrets: { id: string, src: string }[] = []
+	options: BuildImageOptions = {}
 ): string {
+	const secrets = options.secrets ?? []
+	const buildArgs = options.buildArgs ?? {}
 	const getMinikubeDockerEnv = (): Record<string, string> => {
 		const output = execSync('minikube -p minikube docker-env --shell bash', { encoding: 'utf-8' })
 		const env: Record<string, string> = {}
@@ -91,14 +101,20 @@ export function buildImage(
 		}
 	}
 
-	const contentHash = computeDirectoryHash(sourceDir)
+	const contentHash = computeDirectoryHash(sourceDir, [
+		fs.readFileSync(dockerfilePath, 'utf-8'),
+		JSON.stringify(buildArgs)
+	])
 	const existingHash = getImageContentHash(imageName, runCommand)
 	const imageTag = `${imageName}:${contentHash.substring(0, 12)}`
+	const buildArgFlags = Object.entries(buildArgs)
+		.map(([key, value]) => `--build-arg ${key}=${JSON.stringify(value)}`)
+		.join(' ')
 
 	if (existingHash === contentHash) return imageTag
 
 	runCommand(
-		`docker build ${secrets.map(s => `--secret id=${s.id},src=${s.src}`).join(' ')} --progress=plain -f ${dockerfilePath} -t ${imageTag} --label "image.content-hash=${contentHash}" ${sourceDir}`,
+		`docker build ${secrets.map(s => `--secret id=${s.id},src=${s.src}`).join(' ')} ${buildArgFlags} --progress=plain -f ${dockerfilePath} -t ${imageTag} --label "image.content-hash=${contentHash}" ${sourceDir}`,
 		`Building image: ${imageName}`
 	)
 
