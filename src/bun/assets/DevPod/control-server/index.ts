@@ -10,6 +10,10 @@ interface ProcessState {
 	logs: string[]
 }
 
+type RunStreamEvent =
+	| { type: 'log'; log: string; timestamp: number }
+	| { type: 'end'; success: boolean; message: string; exitCode: number | null }
+
 const APP_DIR = '/app'
 const MAX_LOGS = 1000
 const processState: ProcessState = {
@@ -48,16 +52,39 @@ function addLog(line: string) {
 	}
 }
 
-async function startDevServer(): Promise<{ success: boolean; message: string }> {
+function serializeSseEvent(event: RunStreamEvent): string {
+	return `data: ${JSON.stringify(event)}\n\n`
+}
+
+function createLineBuffer(onLine: (line: string) => void) {
+	let buffer = ''
+
+	return {
+		push(chunk: Buffer | string) {
+			const lines = `${buffer}${chunk.toString()}`.split(/\r?\n/)
+			buffer = lines.pop() || ''
+
+			for (const line of lines) {
+				if (line.trim()) onLine(line)
+			}
+		},
+		flush() {
+			if (buffer.trim()) onLine(buffer)
+			buffer = ''
+		}
+	}
+}
+
+async function startDevServer(task: string = 'dev'): Promise<{ success: boolean; message: string }> {
 	if (processState.process) {
 		return { success: false, message: 'Dev server already running' }
 	}
 
 	processState.status = 'starting'
-	addLog('[DevPod] Starting dev server...')
+	addLog(`[DevPod] Starting dev server with bun --bun run ${task}...`)
 
 	try {
-		const proc = spawn('bun', ['--bun', 'run', 'dev'], {
+		const proc = spawn('bun', ['--bun', 'run', task], {
 			cwd: APP_DIR,
 			env: { ...process.env, NODE_ENV: 'development' },
 			shell: true
@@ -89,13 +116,111 @@ async function startDevServer(): Promise<{ success: boolean; message: string }> 
 		processState.process = proc
 		processState.status = 'running'
 
-		return { success: true, message: 'Dev server started' }
+		return { success: true, message: `Dev server started with task ${task}` }
 	} catch (error) {
 		processState.status = 'error'
 		processState.lastError = error instanceof Error ? error.message : String(error)
 		addLog(`[DevPod] Error: ${processState.lastError}`)
 		return { success: false, message: processState.lastError }
 	}
+}
+
+function streamScript(filename: string): Response {
+	let proc: ChildProcess | undefined
+
+	const stream = new ReadableStream({
+		start(controller) {
+			addLog(`[DevPod] Running bun run ${filename}...`)
+
+			try {
+				proc = spawn('bun', ['run', filename], {
+					cwd: APP_DIR,
+					env: { ...process.env },
+					shell: true
+				})
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error)
+				addLog(`[DevPod] Script error: ${message}`)
+				controller.enqueue(serializeSseEvent({
+					type: 'end',
+					success: false,
+					message,
+					exitCode: null
+				}))
+				controller.close()
+				return
+			}
+
+			const stdoutLines = createLineBuffer((line) => {
+				const log = `[run] ${line}`
+				addLog(log)
+				controller.enqueue(serializeSseEvent({
+					type: 'log',
+					log,
+					timestamp: Date.now()
+				}))
+			})
+
+			const stderrLines = createLineBuffer((line) => {
+				const log = `[run:err] ${line}`
+				addLog(log)
+				controller.enqueue(serializeSseEvent({
+					type: 'log',
+					log,
+					timestamp: Date.now()
+				}))
+			})
+
+			proc.stdout?.on('data', (data) => stdoutLines.push(data))
+			proc.stderr?.on('data', (data) => stderrLines.push(data))
+
+			proc.on('exit', (code) => {
+				stdoutLines.flush()
+				stderrLines.flush()
+
+				const success = code === 0
+				const message = success
+					? 'Script completed successfully'
+					: `Script failed with code ${code ?? 'unknown'}`
+				addLog(success
+					? `[DevPod] Script ${filename} completed successfully`
+					: `[DevPod] Script ${filename} failed with code ${code ?? 'unknown'}`)
+
+				controller.enqueue(serializeSseEvent({
+					type: 'end',
+					success,
+					message,
+					exitCode: code
+				}))
+				controller.close()
+			})
+
+			proc.on('error', (err) => {
+				addLog(`[DevPod] Script error: ${err.message}`)
+				controller.enqueue(serializeSseEvent({
+					type: 'end',
+					success: false,
+					message: err.message,
+					exitCode: null
+				}))
+				controller.close()
+			})
+		},
+		cancel() {
+			if (proc && !proc.killed) {
+				proc.kill('SIGTERM')
+			}
+		}
+	})
+
+	return new Response(stream, {
+		headers: {
+			...corsHeaders,
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			'Connection': 'keep-alive'
+		}
+	})
 }
 
 async function stopDevServer(): Promise<{ success: boolean; message: string }> {
@@ -384,7 +509,23 @@ Bun.serve({
 		}
 
 		if (url.pathname === '/start' && req.method === 'POST') {
-			const result = await startDevServer()
+			let task = 'dev'
+			try {
+				const rawBody = await req.text()
+				if (rawBody) {
+					const body = JSON.parse(rawBody) as { task?: string }
+					if (body.task?.trim()) {
+						task = body.task.trim()
+					}
+				}
+			} catch {
+				return Response.json({ success: false, message: 'Invalid request body' }, {
+					status: 400,
+					headers: corsHeaders
+				})
+			}
+
+			const result = await startDevServer(task)
 			return Response.json(result, { headers: corsHeaders })
 		}
 
@@ -424,6 +565,26 @@ Bun.serve({
 				}
 				const result = await runScript(body.filename)
 				return Response.json(result, { headers: corsHeaders })
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error)
+				return Response.json({ success: false, message }, {
+					status: 500,
+					headers: corsHeaders
+				})
+			}
+		}
+
+		if (url.pathname === '/run/stream' && req.method === 'POST') {
+			try {
+				const body = await req.json() as { filename: string }
+				if (!body.filename) {
+					return Response.json({ success: false, message: 'Filename required' }, {
+						status: 400,
+						headers: corsHeaders
+					})
+				}
+
+				return streamScript(body.filename)
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error)
 				return Response.json({ success: false, message }, {

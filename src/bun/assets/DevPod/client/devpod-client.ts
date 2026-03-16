@@ -18,6 +18,15 @@ interface DevPodConfig {
 	appPorts: PortMapping[]
 }
 
+interface RunStreamEvent {
+	type: 'log' | 'end'
+	log?: string
+	timestamp?: number
+	success?: boolean
+	message?: string
+	exitCode?: number | null
+}
+
 function hashStringToPort(str: string, basePort: number, range: number = 1000): number {
 	let hash = 0
 	for (let i = 0; i < str.length; i++) {
@@ -216,9 +225,13 @@ class DevPodClient {
 		return result
 	}
 
-	async start() {
-		console.log('Starting dev server...')
-		const result = await this.request('/start', { method: 'POST' })
+	async start(task?: string) {
+		console.log(task ? `Starting dev server with task "${task}"...` : 'Starting dev server...')
+		const result = await this.request('/start', task ? {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ task })
+		} : { method: 'POST' })
 		console.log(result.message || 'Start completed')
 		return result
 	}
@@ -246,17 +259,65 @@ class DevPodClient {
 
 	async run(filename: string) {
 		console.log(`Running bun run ${filename}...`)
-		const result = await this.request<{ output: string }>('/run', {
+		const response = await fetch(`${this.controlUrl}/run/stream`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ filename })
 		})
-		if (result.output) {
-			console.log('\n--- Output ---')
-			console.log(result.output)
+
+		if (!response.ok) {
+			const result = await response.json() as { success: boolean; message?: string }
+			console.log(result.message || 'Run failed')
+			return result
 		}
-		console.log(result.message || 'Run completed')
-		return result
+
+		const reader = response.body?.getReader()
+		const decoder = new TextDecoder()
+		let buffer = ''
+		let finalEvent: RunStreamEvent | undefined
+
+		if (!reader) {
+			console.error('Failed to get run stream')
+			return { success: false, message: 'Failed to get run stream' }
+		}
+
+		const handleChunk = (chunk: string) => {
+			buffer += chunk
+			const events = buffer.split('\n\n')
+			buffer = events.pop() || ''
+
+			for (const event of events) {
+				if (!event.startsWith('data: ')) continue
+
+				try {
+					const data = JSON.parse(event.slice(6)) as RunStreamEvent
+					if (data.type === 'log' && data.log) {
+						console.log(data.log)
+					} else if (data.type === 'end') {
+						finalEvent = data
+					}
+				} catch {
+					// Ignore malformed stream events
+				}
+			}
+		}
+
+		while (true) {
+			const { done, value } = await reader.read()
+			if (done) {
+				buffer += decoder.decode()
+				if (buffer) handleChunk('')
+				break
+			}
+
+			handleChunk(decoder.decode(value, { stream: true }))
+		}
+
+		console.log(finalEvent?.message || 'Run completed')
+		return {
+			success: finalEvent?.success ?? true,
+			message: finalEvent?.message || 'Run completed'
+		}
 	}
 
 	async logs() {
@@ -625,7 +686,8 @@ Commands:
   logs [-f]       View logs (use -f to follow)
   sync            Perform one-time file sync
   watch           Sync files and watch for changes
-  dev             Full dev workflow (sync + install + start + watch)
+  dev [task]      Full dev workflow (sync + install + start + watch)
+                  Task defaults to "dev" and runs via bun --bun run <task>
   prod            Build and run production server (npm run build && npm run start)
 
 Options:
@@ -638,6 +700,7 @@ Options:
 
 Examples:
   devpod dev my-app
+  devpod dev test-cron dev:cron
   devpod dev my-app -n production
   devpod dev my-app -c 9100 -a 3100:3000
   devpod dev my-app -a 3100:3000 -a 4100:4000   # Multiple ports (frontend + backend)
@@ -735,11 +798,15 @@ async function main() {
 
 		case 'dev':
 			// Full development workflow
+			const task = parsed.extra[0]
 			await client.initialSync()
 			await client.install()
-			await client.start()
+			await client.start(task)
 			console.log('\n========================================')
 			console.log('Dev server is running!')
+			if (task) {
+				console.log(`Task: bun --bun run ${task}`)
+			}
 			for (const port of config.appPorts) {
 				console.log(`App available at: http://localhost:${port.local} (-> pod:${port.remote})`)
 			}
